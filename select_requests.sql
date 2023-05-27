@@ -41,24 +41,29 @@ WHERE id NOT IN (
   WHERE release_year = 2020
 )
 
-SELECT name
+SELECT DISTINCT Collection.name
 FROM Collection
-WHERE id IN (
-  SELECT collection_id
-  FROM CollectionTrack
-  INNER JOIN Track ON Track.id = CollectionTrack.track_id
-  INNER JOIN ArtistAlbum ON ArtistAlbum.album_id = Track.album_id
-  INNER JOIN Artist ON Artist.id = ArtistAlbum.artist_id
-  WHERE Artist.name = 'Electroclub'
-)
+JOIN CollectionTrack ON Collection.id = CollectionTrack.collection_id
+JOIN Track ON Track.id = CollectionTrack.track_id
+JOIN ArtistAlbum ON ArtistAlbum.album_id = Track.album_id
+JOIN Artist ON Artist.id = ArtistAlbum.artist_id
+WHERE Artist.name = 'Electroclub';
 
-SELECT a.name as album_name
+SELECT DISTINCT a.name AS album_name
 FROM Album a
 JOIN Track t ON t.album_id = a.id
 JOIN ArtistAlbum aa ON aa.album_id = a.id
 JOIN ArtistGenre ag ON ag.artist_id = aa.artist_id
-GROUP BY a.id
+GROUP BY a.id, ag.artist_id
 HAVING COUNT(DISTINCT ag.genre_id) > 1;
+
+SELECT DISTINCT name /* Получаем ТОЛЬКО уникальные имена альбомов. Другие данные в выводе не нужны */
+FROM Album a/* Из таблицы альбомов */
+JOIN ArtistAlbum aa ON aa.album_id = a.id /* Объединяем альбомы с промежуточной таблицей между альбомами и исполнителями */
+JOIN ArtistGenre ag ON ag.artist_id = aa.artist_id
+/* Объединяем промежуточную таблицу выше с промежуточной таблицей между исполнителями и жанрами */
+GROUP BY a.id
+HAVING COUNT(distinct ag.genre_id) > 1; 
 
 SELECT t.name as track_name
 FROM Track t
@@ -74,16 +79,15 @@ WHERE t.duration = (
   FROM Track
 );
 
-SELECT a.name as album_name, COUNT(t.id) as track_count
+SELECT a.name AS album_name
 FROM Album a
-LEFT JOIN Track t ON t.album_id = a.id
+JOIN Track t ON t.album_id = a.id
 GROUP BY a.id
 HAVING COUNT(t.id) = (
-  SELECT MIN(track_count)
-  FROM (
-    SELECT COUNT(t.id) as track_count
-    FROM Album a
-    LEFT JOIN Track t ON t.album_id = a.id
-    GROUP BY a.id
-  ) as subquery
+  SELECT COUNT(t.id)
+  FROM Album a
+  JOIN Track t ON t.album_id = a.id
+  GROUP BY a.id
+  ORDER BY COUNT(t.id)
+  LIMIT 1
 );
